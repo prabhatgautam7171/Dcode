@@ -1,0 +1,23 @@
+node_modules/
+.env
+.env.*
+!.env.example
+
+dist/
+build/
+
+.DS_Store
+
+*.log
+npm-debug.log*
+
+
+# Secrets / credentials
+*.json
+!package.json
+!package-lock.json
+.env
+.env.*
+!.env.example
+
+backend/services/auth/config/firebase-service-account.json
