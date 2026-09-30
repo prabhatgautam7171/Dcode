@@ -1,42 +1,38 @@
 
 import { signInWithPopup } from 'firebase/auth';
-import React from 'react'
+import React, { useEffect } from 'react'
 import { auth, googleProvider } from '../firebase';
+import axios from 'axios';
+import { BrowserRouter, data, Route, Routes } from 'react-router-dom';
+import Dashboard from './pages/Dashboard';
+import Login from './pages/Login';
+import { getMe } from './features/getMe';
+import { useDispatch } from 'react-redux';
+import { setUserData } from './redux/userSlice';
 
 const App = () => {
+   const dispatch = useDispatch();
 
-  const handleGoogleSignIn = async () => {
-    console.log("Google button clicked");
-
-    try {
-      console.log("Opening Google popup...");
-
-      const result = await signInWithPopup(auth, googleProvider);
-
-      console.log("Google popup completed");
-
-      const user = result.user;
-
-      console.log({
-        uid: user.uid,
-        email: user.email,
-        displayName: user.displayName,
-      });
-    } catch (error) {
-      console.error("Google Sign-In Error:", error);
+  useEffect(() => {
+    const fetch = async () => {
+     const user =  await getMe();
+       dispatch(setUserData(user));
     }
-  };
+
+    fetch();
+  },[]);
+
+
+
 
 
   return (
-    <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
-    <h1 className="text-5xl font-bold text-white">
-      Dcode
-    </h1>
-    <button onClick={handleGoogleSignIn} className="ml-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
-      Sign in with Google
-    </button>
-  </div>
+   <BrowserRouter>
+    <Routes>
+      <Route path='/' element={<Dashboard/>} />
+      <Route path='/login' element={<Login/>} />
+    </Routes>
+   </BrowserRouter>
   )
 }
 
