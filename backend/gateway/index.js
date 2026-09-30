@@ -3,6 +3,8 @@ import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import morgan from "morgan";
+import { protect } from "./middleware/protect.js";
+import { getCurrentUser } from "./controllers/user.controller.js";
 
 configDotenv();
 
@@ -28,6 +30,8 @@ app.get("/",(req, res) => {
 app.get("/api/auth", (req, res) => {   // Redirect to the auth service
   res.redirect(process.env.AuthServiceUrl || "http://localhost:5001");
 });
+
+app.get("/api/getMe", protect , getCurrentUser);
 
 app.listen(PORT, () => {
   console.log(`🚪 Gateway server is running on port ${PORT}`);

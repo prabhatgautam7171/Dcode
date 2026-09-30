@@ -1,23 +1,71 @@
 import firebaseAdmin from "../config/firebase.js";
 import { getAuth } from "firebase-admin/auth";
+import { User } from "../models/user.model.js";
+import redis from "../../../shared/redis/redis.js";
+
 
 
 
 export const login = async (req, res) => {
   try {
-     const {token} = req.body;
-     const decodedToken = await getAuth(firebaseAdmin).verifyIdToken(token);
-     console.log("Decoded Token:", decodedToken);
-     const uid = decodedToken.uid;
-     const email = decodedToken.email;
-     const name = decodedToken.name;
+    const { token } = req.body;
+    const decodedToken = await getAuth(firebaseAdmin).verifyIdToken(token);
 
-     // Here you can create a session or JWT for your application
-     // For example, you can create a JWT and send it back to the client
-     // const jwtToken = createJWT(uid, email, name); // Implement this function as needed
+    const user = await User.findOne({ firebaseUid: decodedToken.uid });
 
-     res.status(200).json({ message: "Login successful", uid, email, name });
+    if (!user) {
+      const newUser = new User({
+        firebaseUid: decodedToken.uid,
+        name: decodedToken.name || "Anonymous",
+        email: decodedToken.email,
+        avatar: decodedToken.picture || "",
+      });
+
+      await newUser.save();
+      return res.status(201).json({ message: "User created", user: newUser });
+    }
+
+    const sessionId = crypto.randomUUID();
+
+    await redis.set(`session:${sessionId}`, JSON.stringify({
+      name : user.name,
+      _id : user._id.toString(),
+      email: user.email,
+      avatar: user.avatar,
+    }, 'EX', 7*24*60*60)); // Session expires in 1 hour
+
+    res.cookie("session", sessionId, {
+      httpOnly : true,
+      secure : false,
+      sameSite : "strict",
+      maxAge : 7*24*60*60*1000
+    });
+
+    return res.status(200).json({
+      message : `Welcome back, ${user.name}`,
+      data : user
+    })
+
+
   } catch (error) {
-     return res.status(401).json({ message: "Invalid token", error: error.message });
+    return res.status(401).json({ message: "Login error", error: error.message });
+  }
+}
+
+export const logout = async (req, res) => {
+  try {
+    const sessionId = req.cookies?.session;
+
+    await redis.del(`session:${sessionId}`)
+
+    res.clearCookie("session", sessionId)
+
+    return res.status(200).json({
+      message : `User Logged Out.`
+    })
+
+
+  } catch (error) {
+    return res.status(401).json({ message: "Logout error", error: error.message });
   }
 }
