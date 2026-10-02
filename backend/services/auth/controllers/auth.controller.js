@@ -9,48 +9,65 @@ import redis from "../../../shared/redis/redis.js";
 export const login = async (req, res) => {
   try {
     const { token } = req.body;
+
     const decodedToken = await getAuth(firebaseAdmin).verifyIdToken(token);
 
-    const user = await User.findOne({ firebaseUid: decodedToken.uid });
+    let user = await User.findOne({
+      firebaseUid: decodedToken.uid,
+    });
+
+    let isNewUser = false;
 
     if (!user) {
-      const newUser = new User({
+      user = new User({
         firebaseUid: decodedToken.uid,
         name: decodedToken.name || "Anonymous",
         email: decodedToken.email,
         avatar: decodedToken.picture || "",
       });
 
-      await newUser.save();
-      return res.status(201).json({ message: "User created", user: newUser });
+      await user.save();
+      isNewUser = true;
     }
 
     const sessionId = crypto.randomUUID();
 
-    await redis.set(`session:${sessionId}`, JSON.stringify({
-      name : user.name,
-      _id : user._id.toString(),
-      email: user.email,
-      avatar: user.avatar,
-    }, 'EX', 7*24*60*60)); // Session expires in 1 hour
+    await redis.set(
+      `session:${sessionId}`,
+      JSON.stringify({
+        name: user.name,
+        _id: user._id.toString(),
+        email: user.email,
+        avatar: user.avatar,
+      }),
+      "EX",
+      7 * 24 * 60 * 60
+    );
 
     res.cookie("session", sessionId, {
-      httpOnly : true,
-      secure : false,
-      sameSite : "strict",
-      maxAge : 7*24*60*60*1000
+      httpOnly: true,
+      secure: false,
+      sameSite: "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      path: "/",
     });
 
-    return res.status(200).json({
-      message : `Welcome back, ${user.name}`,
-      data : user
-    })
-
+    return res.status(isNewUser ? 201 : 200).json({
+      message: isNewUser
+        ? "User created"
+        : `Welcome back, ${user.name}`,
+      data: user,
+    });
 
   } catch (error) {
-    return res.status(401).json({ message: "Login error", error: error.message });
+    console.error("Login error:", error);
+
+    return res.status(401).json({
+      message: "Login error",
+      error: error.message,
+    });
   }
-}
+};
 
 export const logout = async (req, res) => {
   try {
