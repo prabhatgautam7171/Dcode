@@ -6,7 +6,10 @@ export const login = async (token) => {
   try {
     const response = await axios.post(
       "http://localhost:8001/api/auth/login",
-      { token }
+      { token },
+      {
+        withCredentials: true,
+      }
     );
 
     console.log("Login successful:", response.data);
